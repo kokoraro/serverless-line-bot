@@ -4,6 +4,9 @@ provider:
   name: aws
   runtime: nodejs12.x
   stage: ${opt:stage, 'dev'}
+  environment:
+    CHANNEL_ACCESS_TOKEN: "YOUR LINE CHANNEL ACCESS TOKEN"
+    CHANNEL_SECRET: "YOUR LINE CHANNEL SECRET"
 
 functions:
   bot:
