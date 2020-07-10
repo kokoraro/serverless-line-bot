@@ -1,0 +1,15 @@
+service: aws-node-line-bot
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'dev'}
+
+functions:
+  bot:
+    handler: handler.callback
+    events:
+      - http:
+          path: callback
+          method: post
+          cors: true
