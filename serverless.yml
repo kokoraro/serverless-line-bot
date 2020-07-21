@@ -8,6 +8,17 @@ provider:
     CHANNEL_ACCESS_TOKEN: "YOUR LINE CHANNEL ACCESS TOKEN"
     CHANNEL_SECRET: "YOUR LINE CHANNEL SECRET"
 
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 
+        - "arn:aws:dynamodb:ap-northeast-1:919605901492:table/LINE-BOT-DB"
 functions:
   bot:
     handler: handler.callback
