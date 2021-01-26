@@ -3,6 +3,8 @@ service: aws-node-line-bot
 provider:
   name: aws
   runtime: nodejs12.x
+  profile: serverless-admin
+  region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
   environment:
     CHANNEL_ACCESS_TOKEN: "YOUR LINE CHANNEL ACCESS TOKEN"
