@@ -52,8 +52,6 @@ module.exports.callback = (event, context) => {
   request.get(getUserProfile(userId), function (error, response, body) {
     if (error || response.statusCode != 200) return;
 
-    dynamo.writeDb(body.displayName, text)
-
     const message = {
       'type': 'text',
       'text': 'hello!!' + body.displayName + 'さん\n' + text,
