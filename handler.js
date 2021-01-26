@@ -3,7 +3,6 @@
 const line = require('@line/bot-sdk');
 const crypto = require('crypto');
 const request = require('request');
-const dynamo = require('./dynamo.js')
 
 const client = new line.Client({
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
