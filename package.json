@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@line/bot-sdk": "^6.3.0",
-    "aws-sdk": "^2.714.2",
+    "aws-sdk": "^2.814.0",
     "crypto": "^1.0.1",
     "node-fetch": "^2.6.1",
     "request": "^2.88.2"
