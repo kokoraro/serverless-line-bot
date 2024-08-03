@@ -8,6 +8,7 @@ const Log = require("@dazn/lambda-powertools-logger");
 const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 const { DynamoDBClient, PutItemCommand, QueryCommand } = require("@aws-sdk/client-dynamodb");
 
+// クライアントの初期化 (両方の方法で共通)
 const dynamodb = new DynamoDBClient({ 
   region: "ap-northeast-1" 
 });
@@ -56,7 +57,6 @@ async function getUserProfile(userId) {
   }
 }
 
-// 会話履歴を保存
 async function saveConversation(userId, userMessage, aiMessage) {
   try {
     const command = new PutItemCommand({
@@ -75,7 +75,6 @@ async function saveConversation(userId, userMessage, aiMessage) {
   }
 }
 
-// 会話履歴を取得
 async function getConversationHistory(userId, limit = 5) {
   try {
     const params = {
@@ -98,7 +97,6 @@ async function getConversationHistory(userId, limit = 5) {
   }
 }
 
-// メッセージを返信
 async function replyMessage(replyToken, message) {
   try {
     const result = await lineClient.replyMessage(replyToken, message);
@@ -142,27 +140,49 @@ async function getImageDescription(image_url) {
 // 引数にpromptのテキストを指定する
 async function invokeBedrock(prompt, history) {
   // 過去の会話の履歴を取得
-  let conversationHistory = "";
+  let conversationHistory = [];
   for (const item of history) {
-    if (item.userMessage === undefined || item.aiMessage === undefined) {
-      continue;
-    }
-    conversationHistory += `Human: ${item.userMessage.S} \nAssistant: ${item.aiMessage.S} \n`;
+    conversationHistory.push({
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: item.userMessage.S,
+        },
+      ],
+    });
+    conversationHistory.push({
+      role: "assistant",
+      content: [
+        {
+          type: "text",
+          text: item.aiMessage.S,
+        },
+      ],
+    });
   }
   Log.info("会話履歴", { data: conversationHistory });
   // 新しいメッセージを追加
-  const newMessage = `Human: ${prompt} \n\nAssistant:`
+  const newMessage = {
+    role: "user",
+    content: [
+      {
+        type: "text",
+        text: prompt,
+      },
+    ],
+  }
   // 会話履歴と新しいメッセージを結合
-  const promptText = `${conversationHistory} ${newMessage}`;
+  conversationHistory.push(newMessage);
   
   const params = {
-    modelId: "anthropic.claude-v2", // 使用したいモデルIDを指定
+    modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0", // 使用したいモデルIDを指定
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify({
-      prompt: promptText,
-      max_tokens_to_sample: 3000,
-      temperature: 0.5,
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 8192,
+      messages:  conversationHistory
     }),
   };
 
@@ -170,9 +190,9 @@ async function invokeBedrock(prompt, history) {
     const command = new InvokeModelCommand(params);
     const response = await bedrockClient.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    // console.log("Bedrock response:", responseBody);
-    console.log("Bedrock response:", responseBody.completion);
-    return responseBody.completion;
+    console.log("Bedrock response content:", responseBody.content);
+    console.log("Bedrock response text:", responseBody.content[0].text);
+    return responseBody.content[0].text;
   } catch (error) {
     console.error("Error invoking Bedrock:", error);
     return "エラーが発生しました。";
@@ -220,11 +240,11 @@ module.exports.callback = async (event, context) => {
     type: "text",
     text: aiResponse,
   };
-  Log.info("ユーザとAIの会話", { data: userId, text: text, data: aiResponse });
+  Log.info("ユーザID", { data: userId, text: text, data: aiResponse });
 
   const result = await saveConversation(userId, text, aiResponse);
-  Log.info("会話履歴の保存", { data: result });
-  
+  Log.info("保存結果", { data: result });
+
   const messageResult = await replyMessage(replyToken, message);
   Log.info("送信結果", { data: messageResult });
 };
