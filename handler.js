@@ -1,13 +1,19 @@
 "use strict";
 
 const line = require("@line/bot-sdk");
+const OpenAI = require('openai');
 const crypto = require("crypto");
 const request = require("request");
 const Log = require("@dazn/lambda-powertools-logger");
+const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 
 const client = new line.Client({
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
+});
+
+const bedrockClient = new BedrockRuntimeClient({
+  region: "us-east-1",
 });
 
 function generateResponse(statusCode, lineStatus, message) {
@@ -55,24 +61,100 @@ async function replyMessage(replyToken, message) {
   }
 }
 
+async function main(image_url) {
+  // 初期化
+  const openai = new OpenAI();
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-2024-05-13",
+    max_tokens: 4096,
+    prompt: "あなたは画像を見ています。画像について説明してください。",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { 
+            type: "text", 
+            text: "この画像について説明してください。"
+          },
+          {
+            type: "image_url",
+            image_url: {
+              "url": image_url,
+            },
+          },
+        ],
+      },
+    ],
+  });
+  return response.choices[0]["message"]["content"];
+}
+
+// 引数にpromptのテキストを指定する
+async function invokeBedrock(prompt) {
+  
+  const params = {
+    modelId: "anthropic.claude-v2", // 使用したいモデルIDを指定
+    contentType: "application/json",
+    accept: "application/json",
+    body: JSON.stringify({
+      prompt: `Human: ${prompt} \n\nAssistant:`,
+      max_tokens_to_sample: 3000,
+      temperature: 0.5,
+    }),
+  };
+
+  try {
+    const command = new InvokeModelCommand(params);
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    // console.log("Bedrock response:", responseBody);
+    console.log("Bedrock response:", responseBody.completion);
+    return responseBody.completion;
+  } catch (error) {
+    console.error("Error invoking Bedrock:", error);
+    return "エラーが発生しました。";
+  }
+}
+
+module.exports.hello = async (event, context) => {
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      message: "Hello World!",
+    }),
+  };
+}
+
 module.exports.callback = async (event, context) => {
   const body = JSON.parse(event.body);
-
-  Log.info("検証", { event });
 
   const userId = body.events[0].source.userId;
   const text = body.events[0].message.text;
   const replyToken = body.events[0].replyToken;
 
-  // if (!validateSignature(event)) return;
-  // if (isLineConnectionError(replyToken, context)) return;
+  // もし送信されたテキストがURLじゃない場合は固定のメッセージを返す
+  // if (!text.match(/https?:\/\/\S+/)) {
+  //   const message = {
+  //     type: "text",
+  //     text: "画像URLを送信してください。",
+  //   };
+  //   Log.info("メッセージデータ", { data: message });
 
-  const userProfile = await getUserProfile(userId);
-  Log.info("ユーザープロフィール", { userProfile });
+  //   const messageResult = await replyMessage(replyToken, message);
+  //   Log.info("送信結果", { data: messageResult });
+  //   return;
+  // }
+
+  // 画像のURL
+  // const ai_message = await main(image_url);
+
+  const aiResponse = await invokeBedrock(text);
+  Log.info("AIの返答", { data: aiResponse });
 
   const message = {
     type: "text",
-    text: "hello!!" + userProfile.displayName + "さん\n" + text,
+    text: aiResponse,
   };
   Log.info("メッセージデータ", { data: message });
 

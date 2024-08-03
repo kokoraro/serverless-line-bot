@@ -1,20 +1,49 @@
 service: aws-node-line-bot
 
+# deployするのは、handler.js ファイルのみ
+package:
+  exclude:
+    - node_modules/**
+    - my-layer/**
+    - .gitignore
+    - .git/**
+    - package-lock.json
+    - package.json
+    - README.md
+    - event.json
+
 provider:
   name: aws
-  runtime: nodejs16.x
+  runtime: nodejs20.x
   profile: default
   region: ap-northeast-1
   stage: ${opt:stage, 'dev'}
   environment:
     CHANNEL_ACCESS_TOKEN: "YOUR LINE CHANNEL ACCESS TOKEN"
-    CHANNEL_SECRET: "YOUR LINE CHANNEL SECRET"
+    CHANNEL_SECRET: "YOUR LINE CHANNEL ACCESS TOKEN"
+    OPENAI_API_KEY: "YOUR OPENAI API KEY"
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "bedrock:InvokeModel"
+        - "bedrock:ListFoundationModels"
+      Resource: "arn:aws:bedrock:*:*:foundation-model/*"
 
 functions:
   bot:
     handler: handler.callback
+    layers:
+      - arn:aws:lambda:ap-northeast-1:919605901492:layer:line-bot-nodejs:1
     events:
       - http:
           path: callback
           method: post
+          cors: true
+    timeout: 30
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: hello
+          method: get
           cors: true

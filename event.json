@@ -1,0 +1,48 @@
+{
+  "body": "{\"events\":[{\"type\":\"message\",\"message\":{\"type\":\"text\",\"id\":\"12345678901234\",\"text\":\"空は青く、夕焼けはなぜ赤い？\"},\"timestamp\":1462629479859,\"source\":{\"type\":\"user\",\"userId\":\"U4af4980629...\"},\"replyToken\":\"nHuyWiB7yP5Zw52FIkcQobQuGDXCTA\",\"mode\":\"active\"}]}",
+  "resource": "/{proxy+}",
+  "path": "/webhook",
+  "httpMethod": "POST",
+  "isBase64Encoded": false,
+  "queryStringParameters": null,
+  "pathParameters": {
+    "proxy": "webhook"
+  },
+  "stageVariables": null,
+  "headers": {
+    "Accept": "*/*",
+    "Content-Type": "application/json",
+    "Host": "xxxxxxxxxx.execute-api.ap-northeast-1.amazonaws.com",
+    "User-Agent": "LineBotWebhook/2.0",
+    "X-Line-Signature": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  },
+  "requestContext": {
+    "resourceId": "123456",
+    "resourcePath": "/{proxy+}",
+    "httpMethod": "POST",
+    "extendedRequestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTime": "09/Apr/2015:12:34:56 +0000",
+    "path": "/prod/webhook",
+    "accountId": "123456789012",
+    "protocol": "HTTP/1.1",
+    "stage": "prod",
+    "domainPrefix": "xxxxxxxxxx",
+    "requestTimeEpoch": 1428582896000,
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "accountId": null,
+      "cognitoIdentityId": null,
+      "caller": null,
+      "accessKey": null,
+      "sourceIp": "203.0.113.0",
+      "cognitoAuthenticationType": null,
+      "cognitoAuthenticationProvider": null,
+      "userArn": null,
+      "userAgent": "LineBotWebhook/2.0",
+      "user": null
+    },
+    "domainName": "xxxxxxxxxx.execute-api.ap-northeast-1.amazonaws.com",
+    "apiId": "xxxxxxxxxx"
+  }
+}

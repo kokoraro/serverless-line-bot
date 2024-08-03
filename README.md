@@ -16,6 +16,47 @@ $ cd serverless-line-bot
 $ npm install
 ```
 
+## AWS Credentialsの設定手順
+
+1. AWS CLIのインストール:
+   まだAWS CLIをインストールしていない場合は、公式ドキュメントに従ってインストールしてください。
+
+2. `aws configure` コマンドの実行:
+  ターミナルで以下のコマンドを実行します：
+  ```bash
+  $ aws configure
+  ```
+
+3. プロンプトに従って情報を入力:
+  ```
+  AWS Access Key ID [None]: YOUR_ACCESS_KEY_ID
+  AWS Secret Access Key [None]: YOUR_SECRET_ACCESS_KEY
+  Default region name [None]: your-preferred-region (e.g., us-west-2)
+  Default output format [None]: json
+  ```
+
+4. 確認:
+  設定が正しく行われたか確認するには、以下のコマンドを実行します：
+  ```bash
+  $ aws sts get-caller-identity
+  ```
+  このコマンドが正常に実行され、あなたのAWSアカウント情報が表示されれば、認証情報が正しく設定されています。
+
+5. 設定ファイルの場所:
+  - credentials ファイル: `~/.aws/credentials` (Linux/Mac) or `%UserProfile%\.aws\credentials` (Windows)
+  - config ファイル: `~/.aws/config` (Linux/Mac) or `%UserProfile%\.aws\config` (Windows)
+
+6. 複数のプロファイルの設定:
+  異なるAWSアカウントやロールを使用する場合は、`--profile` オプションを使用して複数のプロファイルを設定できます：
+  ```bash
+  $ aws configure --profile profilename
+  ```
+
+注意点:
+- シークレットアクセスキーは非常に重要な情報です。安全に管理し、絶対に他人と共有しないでください。
+- アクセスキーを定期的にローテーションすることをお勧めします。
+- 可能な限り、IAMロールを使用してアクセスを管理することを検討してください。
+
 ## Set Environment
 
 Edit serverless.yml
