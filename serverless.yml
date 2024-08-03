@@ -49,7 +49,8 @@ functions:
           path: callback
           method: post
           cors: true
-    timeout: 30
+          async: true
+    timeout: 180
   hello:
     handler: handler.hello
     events:
