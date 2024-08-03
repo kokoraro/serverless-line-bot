@@ -22,12 +22,22 @@ provider:
     CHANNEL_ACCESS_TOKEN: "YOUR LINE CHANNEL ACCESS TOKEN"
     CHANNEL_SECRET: "YOUR LINE CHANNEL ACCESS TOKEN"
     OPENAI_API_KEY: "YOUR OPENAI API KEY"
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-conversations
   iamRoleStatements:
     - Effect: "Allow"
       Action:
         - "bedrock:InvokeModel"
         - "bedrock:ListFoundationModels"
       Resource: "arn:aws:bedrock:*:*:foundation-model/*"
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
 
 functions:
   bot:
@@ -47,3 +57,22 @@ functions:
           path: hello
           method: get
           cors: true
+
+resources:
+  Resources:
+    ConversationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        

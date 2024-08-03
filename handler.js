@@ -6,8 +6,13 @@ const crypto = require("crypto");
 const request = require("request");
 const Log = require("@dazn/lambda-powertools-logger");
 const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
+const { DynamoDBClient, PutItemCommand, QueryCommand } = require("@aws-sdk/client-dynamodb");
 
-const client = new line.Client({
+const dynamodb = new DynamoDBClient({ 
+  region: "ap-northeast-1" 
+});
+
+const lineClient = new line.Client({
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 });
@@ -43,7 +48,7 @@ function isLineConnectionError(replyToken, context) {
 
 async function getUserProfile(userId) {
   try {
-    const profile = await client.getProfile(userId);
+    const profile = await lineClient.getProfile(userId);
     return profile;
   } catch (error) {
     console.error(`Get profile error: ${error}`);
@@ -51,9 +56,52 @@ async function getUserProfile(userId) {
   }
 }
 
+// 会話履歴を保存
+async function saveConversation(userId, userMessage, aiMessage) {
+  try {
+    const command = new PutItemCommand({
+      TableName: process.env.DYNAMODB_TABLE,
+      Item: {
+        userId: { S: userId },
+        timestamp: { N: Date.now().toString() },
+        userMessage: { S: userMessage },
+        aiMessage: { S: aiMessage }
+      }
+    });
+    const response = await dynamodb.send(command);
+    Log.info('Conversation saved successfully', { data: response });
+  } catch (error) {
+    console.error('Error saving conversation:', error);
+  }
+}
+
+// 会話履歴を取得
+async function getConversationHistory(userId, limit = 5) {
+  try {
+    const params = {
+      TableName: process.env.DYNAMODB_TABLE,
+      KeyConditionExpression: "userId = :userId",
+      ExpressionAttributeValues: {
+        ":userId": { S: userId },
+      },
+      Limit: limit,
+      ScanIndexForward: false,
+    };
+    const command = new QueryCommand(params);
+    const response = await dynamodb.send(command);
+    Log.info('Conversation history retrieved successfully', { data: response.Items });
+
+    return response.Items;
+  } catch (error) {
+    console.error('Error getting conversation history:', error);
+    return [];
+  }
+}
+
+// メッセージを返信
 async function replyMessage(replyToken, message) {
   try {
-    const result = await client.replyMessage(replyToken, message);
+    const result = await lineClient.replyMessage(replyToken, message);
     return result;
   } catch (error) {
     console.error(`Get profile error: ${error}`);
@@ -61,7 +109,8 @@ async function replyMessage(replyToken, message) {
   }
 }
 
-async function main(image_url) {
+// open ai に画像を送信して説明を取得
+async function getImageDescription(image_url) {
   // 初期化
   const openai = new OpenAI();
 
@@ -91,14 +140,27 @@ async function main(image_url) {
 }
 
 // 引数にpromptのテキストを指定する
-async function invokeBedrock(prompt) {
+async function invokeBedrock(prompt, history) {
+  // 過去の会話の履歴を取得
+  let conversationHistory = "";
+  for (const item of history) {
+    if (item.userMessage === undefined || item.aiMessage === undefined) {
+      continue;
+    }
+    conversationHistory += `Human: ${item.userMessage.S} \nAssistant: ${item.aiMessage.S} \n`;
+  }
+  Log.info("会話履歴", { data: conversationHistory });
+  // 新しいメッセージを追加
+  const newMessage = `Human: ${prompt} \n\nAssistant:`
+  // 会話履歴と新しいメッセージを結合
+  const promptText = `${conversationHistory} ${newMessage}`;
   
   const params = {
     modelId: "anthropic.claude-v2", // 使用したいモデルIDを指定
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify({
-      prompt: `Human: ${prompt} \n\nAssistant:`,
+      prompt: promptText,
       max_tokens_to_sample: 3000,
       temperature: 0.5,
     }),
@@ -147,17 +209,22 @@ module.exports.callback = async (event, context) => {
   // }
 
   // 画像のURL
-  // const ai_message = await main(image_url);
+  // const ai_message = await getImageDescription(image_url);
 
-  const aiResponse = await invokeBedrock(text);
+  const history = await getConversationHistory(userId);
+
+  const aiResponse = await invokeBedrock(text, history);
   Log.info("AIの返答", { data: aiResponse });
 
   const message = {
     type: "text",
     text: aiResponse,
   };
-  Log.info("メッセージデータ", { data: message });
+  Log.info("ユーザとAIの会話", { data: userId, text: text, data: aiResponse });
 
+  const result = await saveConversation(userId, text, aiResponse);
+  Log.info("会話履歴の保存", { data: result });
+  
   const messageResult = await replyMessage(replyToken, message);
   Log.info("送信結果", { data: messageResult });
 };
