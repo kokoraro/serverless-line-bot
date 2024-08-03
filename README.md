@@ -109,6 +109,72 @@ Serverless: Run the "serverless" command to setup monitoring, troubleshooting an
 
 Endpoint URL https://example.region.amazonaws.com/stage/callback
 
+## Serverless Framework サインインプロセス
+
+1. Serverless Dashboard にサインアップ:
+  - ブラウザで https://app.serverless.com に移動し、アカウントを作成します。
+
+2. CLIからのサインイン:
+  ```
+  serverless login
+  ```
+  - このコマンドを実行すると、ブラウザが開き、Serverless Dashboard での認証が求められます。
+
+3. `serverless.yml` の設定:
+  ```yaml
+  service: your-service-name
+  ```
+
+4. デプロイ:
+  ```bash
+  $ serverless deploy
+  ```
+  - この時点で、自動的に Serverless Dashboard の認証情報が使用されます。
+
+## Serverless Dashboard を使用せずにデプロイする方法
+
+Serverless Dashboard を使用したくない場合や、CI/CD 環境でデプロイする場合は、以下の方法を使用できます：
+
+1. AWS 認証情報を直接設定:
+  - AWS CLI の設定: `aws configure`
+  - 環境変数の設定:
+    ```
+    export AWS_ACCESS_KEY_ID=your-access-key
+    export AWS_SECRET_ACCESS_KEY=your-secret-key
+    ```
+
+2. デプロイコマンドの実行:
+  ```
+  serverless deploy --verbose
+  ```
+
+## CI/CD 環境での対応
+
+1. 環境変数の設定:
+  - `AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` を CI/CD システムの環境変数として設定します。
+
+2. `serverless.yml` の修正:
+  - `org` と `app` の行を削除または commentout します。
+
+3. デプロイスクリプト:
+  ```bash
+  #!/bin/bash
+  serverless deploy --verbose
+  ```
+
+## トラブルシューティング
+
+1. 認証エラーが発生する場合:
+  - AWS 認証情報が正しく設定されているか確認します。
+  - `aws sts get-caller-identity` を実行して AWS 認証情報をテストします。
+
+2. リージョンの問題:
+  - `serverless.yml` で正しい AWS リージョンが設定されているか確認します。
+  - または、環境変数 `AWS_DEFAULT_REGION` を設定します。
+
+3. 権限の問題:
+  - 使用している IAM ユーザーまたはロールに必要な権限があることを確認します。
+
 ## Usage
 
 ## Scaling
