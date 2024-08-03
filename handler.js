@@ -172,6 +172,10 @@ async function invokeBedrock(prompt, history) {
       },
     ],
   }
+
+  // conversationHistoryを逆順にする
+  conversationHistory.reverse();
+  
   // 会話履歴と新しいメッセージを結合
   conversationHistory.push(newMessage);
   
