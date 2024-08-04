@@ -1,4 +1,4 @@
-service: aws-node-line-bot
+service: amazon-bedrock-bot
 
 # deployするのは、handler.js ファイルのみ
 package:
@@ -23,6 +23,7 @@ provider:
     CHANNEL_SECRET: "YOUR LINE CHANNEL ACCESS TOKEN"
     OPENAI_API_KEY: "YOUR OPENAI API KEY"
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-conversations
+    S3_BUCKET: ${self:service}-${self:provider.stage}-bucket
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -38,12 +39,21 @@ provider:
         - dynamodb:Scan
         - dynamodb:DeleteItem
       Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+        - s3:DeleteObject
+        - s3:ListBucket
+        - s3:ListBucketMultipartUploads
+        - s3:ListMultipartUploadParts
+      Resource: "arn:aws:s3:::${self:provider.environment.S3_BUCKET}/*"
 
 functions:
   bot:
     handler: handler.callback
     layers:
-      - arn:aws:lambda:ap-northeast-1:919605901492:layer:line-bot-nodejs:1
+      - arn:aws:lambda:ap-northeast-1:919605901492:layer:open-api-nodejs:4
     events:
       - http:
           path: callback
@@ -76,4 +86,60 @@ resources:
           - AttributeName: timestamp
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-        
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_BUCKET}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerPreferred
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders:
+                - "*"
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+              AllowedOrigins:
+                - "*"
+    S3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref S3Bucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource: !Join 
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref S3Bucket
+                  - /*
+    # ApiGatewayMethodPostTask:
+    #   Type: AWS::ApiGateway::Method
+    #   Properties:
+    #     HttpMethod: POST
+    #     ResourceId: 
+    #       Ref: ApiGatewayResourceCallback
+    #     RestApiId: 
+    #       Ref: ApiGatewayRestApi
+    #     AuthorizationType: NONE
+    #     Integration:
+    #       Type: AWS
+    #       IntegrationHttpMethod: POST
+    #       # arn:aws:lambda:ap-northeast-1:919605901492:function:aws-node-line-bot-dev-bot
+    #       Uri: arn:aws:apigateway:${self:provider.region}:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:919605901492:function:aws-node-line-bot-${self:provider.stage}-bot/invocations
+    #       IntegrationResponses:
+    #         - StatusCode: 202
+    #     MethodResponses:
+    #       - StatusCode: 202

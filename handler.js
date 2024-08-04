@@ -5,8 +5,13 @@ const OpenAI = require('openai');
 const crypto = require("crypto");
 const request = require("request");
 const Log = require("@dazn/lambda-powertools-logger");
+
+// Bedrock Runtime SDK と DynamoDB SDK をインポート
 const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 const { DynamoDBClient, PutItemCommand, QueryCommand } = require("@aws-sdk/client-dynamodb");
+// S3 SDK をインポート
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
@@ -287,9 +292,10 @@ async function processAsyncTask(event) {
   let aiResponse = ''
   if (body.events[0].message.type === "image") {
     const imageId = body.events[0].message.id;
-    const imagePath = await getImage(imageId);
-    aiResponse = await invokeBedrockWithImage(imagePath);
-    text = '画像について説明してください。:' + imagePath;
+    const imageObj = await getImage(imageId);
+    Log.info("画像の取得", { data: imageObj });
+    aiResponse = await invokeBedrockWithImage(imageObj.filePath);
+    text = '画像について説明してください。:' + imageObj.s3Url;
   } else if (body.events[0].message.type === "text") {
     const history = await getConversationHistory(userId);
     aiResponse = await invokeBedrock(text, history);
@@ -324,9 +330,9 @@ async function getImage(messageId) {
     Log.info('画像の取得に成功しました:', { data: buffer });
     
     const tempFilename = `image_${Date.now()}.jpg`;
-    const tempFilePath = await saveImageTemporarily(buffer, tempFilename);
+    const tempFileObj = await saveImageTemporarily(buffer, tempFilename);
 
-    return tempFilePath;
+    return tempFileObj;
   } catch (error) {
     console.error('画像の取得に失敗しました:', error);
     return lineClient.replyMessage(event.replyToken, {
@@ -342,10 +348,50 @@ async function saveImageTemporarily(imageBuffer, filename) {
   
   try {
     await fs.writeFile(filePath, imageBuffer);
-    console.log(`Image saved temporarily at: ${filePath}`);
-    return filePath;
+    Log.info('画像を一時保存しました', { filePath });
+
+    // s3に画像をアップロード
+    const s3Key = `images/${filename}`;
+    const s3Url = await uploadImageToS3(filePath, s3Key);
+    Log.info('S3に画像をアップロードしました', { s3Url });
+
+    return { 
+      filePath,
+      s3Url
+    };
   } catch (error) {
     console.error('Error saving image:', error);
+    throw error;
+  }
+}
+
+async function uploadImageToS3(filePath, s3Key) {
+  const s3 = new S3Client({ region: 'ap-northeast-1' });
+  const bucketName = process.env.S3_BUCKET;
+
+  if (!bucketName) {
+    throw new Error('S3_BUCKET environment variable is not set');
+  }
+
+  try {
+    const fileContent = await fs.readFile(filePath);
+
+    const params = {
+      Bucket: bucketName,
+      Key: s3Key,
+      Body: fileContent,
+      ContentType: 'image/jpeg' // 適切なContent-Typeに変更してください
+    };
+
+    const command = new PutObjectCommand(params);
+    const response = await s3.send(command);
+
+    console.log(`Image uploaded successfully. ETag: ${response.ETag}`);
+    const region = await s3.config.region();
+
+    return `https://${bucketName}.s3.${region}.amazonaws.com/${s3Key}`;
+  } catch (error) {
+    console.error('Error uploading image to S3:', error);
     throw error;
   }
 }
