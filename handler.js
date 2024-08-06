@@ -17,8 +17,8 @@ const os = require('os');
 const path = require('path');
 
 // クライアントの初期化 (両方の方法で共通)
-const dynamodb = new DynamoDBClient({ 
-  region: "ap-northeast-1" 
+const dynamodb = new DynamoDBClient({
+  region: "ap-northeast-1"
 });
 
 const lineClient = new line.Client({
@@ -60,7 +60,7 @@ async function getUserProfile(userId) {
     const profile = await lineClient.getProfile(userId);
     return profile;
   } catch (error) {
-    console.error(`Get profile error: ${error}`);
+    Log.error(`Get profile error: ${error}`);
     return null;
   }
 }
@@ -79,7 +79,7 @@ async function saveConversation(userId, userMessage, aiMessage) {
     const response = await dynamodb.send(command);
     Log.info('Conversation saved successfully', { data: response });
   } catch (error) {
-    console.error('Error saving conversation:', error);
+    Log.error('Error saving conversation:', { error });
   }
 }
 
@@ -100,7 +100,7 @@ async function getConversationHistory(userId, limit = 5) {
 
     return response.Items;
   } catch (error) {
-    console.error('Error getting conversation history:', error);
+    Log.error('Error getting conversation history:', { error });
     return [];
   }
 }
@@ -110,7 +110,7 @@ async function replyMessage(replyToken, message) {
     const result = await lineClient.replyMessage(replyToken, message);
     return result;
   } catch (error) {
-    console.error(`Get profile error: ${error}`);
+    Log.error(`Get replyMessage error`, { error });
     return null;
   }
 }
@@ -128,8 +128,8 @@ async function getImageDescription(image_url) {
       {
         role: "user",
         content: [
-          { 
-            type: "text", 
+          {
+            type: "text",
             text: "この画像について説明してください。"
           },
           {
@@ -183,10 +183,10 @@ async function invokeBedrock(prompt, history) {
       },
     ],
   }
-  
+
   // 会話履歴と新しいメッセージを結合
   conversationHistory.push(newMessage);
-  
+
   const params = {
     modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0", // 使用したいモデルIDを指定
     contentType: "application/json",
@@ -194,7 +194,7 @@ async function invokeBedrock(prompt, history) {
     body: JSON.stringify({
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 8192,
-      messages:  conversationHistory
+      messages: conversationHistory
     }),
   };
 
@@ -202,11 +202,11 @@ async function invokeBedrock(prompt, history) {
     const command = new InvokeModelCommand(params);
     const response = await bedrockClient.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log("Bedrock response content:", responseBody.content);
-    console.log("Bedrock response text:", responseBody.content[0].text);
+    // Log.info("Bedrock response content:", responseBody.content);
+    // Log.info("Bedrock response text:", responseBody.content[0].text);
     return responseBody.content[0].text;
   } catch (error) {
-    console.error("Error invoking Bedrock:", error);
+    Log.error("Error invoking Bedrock:", { error });
     return "エラーが発生しました。";
   }
 }
@@ -217,7 +217,7 @@ async function invokeBedrockWithImage(imagePath) {
 
   const messages = [
     {
-      role: "user", 
+      role: "user",
       content: [
         {
           type: "image",
@@ -227,7 +227,7 @@ async function invokeBedrockWithImage(imagePath) {
             data: binaryData
           }
         },
-        { 
+        {
           type: "text",
           text: "画像について何が書かれているか日本語で返答せよ。"
         }
@@ -250,11 +250,11 @@ async function invokeBedrockWithImage(imagePath) {
     const command = new InvokeModelCommand(params);
     const response = await bedrockClient.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log("Bedrock response content:", responseBody.content);
-    console.log("Bedrock response text:", responseBody.content[0].text);
+    // Log.info("Bedrock response content:", responseBody.content);
+    // Log.info("Bedrock response text:", responseBody.content[0].text);
     return responseBody.content[0].text;
   } catch (error) {
-    console.error("Error invoking Bedrock:", error);
+    Log.error("Error invoking Bedrock:", error);
     return "エラーが発生しました。";
   }
 }
@@ -271,8 +271,8 @@ module.exports.hello = async (event, context) => {
 module.exports.callback = async (event, context) => {
   // 非同期処理を開始
   await processAsyncTask(event)
-    .then(() => console.log('Async task completed'))
-    .catch(err => console.error('Async task failed:', err));
+    .then(() => Log.info('Async task completed'))
+    .catch(err => Log.info('Async task failed:', { err }));
 
   // 即座に応答を返す
   return {
@@ -282,9 +282,7 @@ module.exports.callback = async (event, context) => {
 };
 
 async function processAsyncTask(event) {
-  Log.info("Event", { event });
-
-  const body = event.body;
+  const body = JSON.parse(event.body);
   const userId = body.events[0].source.userId;
   let text = body.events[0].message.text;
   const replyToken = body.events[0].replyToken;
@@ -320,7 +318,7 @@ async function getImage(messageId) {
   try {
     // 画像のバイナリデータを取得
     const stream = await lineClient.getMessageContent(messageId);
-    
+
     // バイナリデータをバッファに変換
     let chunks = [];
     for await (const chunk of stream) {
@@ -328,13 +326,13 @@ async function getImage(messageId) {
     }
     const buffer = Buffer.concat(chunks);
     Log.info('画像の取得に成功しました:', { data: buffer });
-    
+
     const tempFilename = `image_${Date.now()}.jpg`;
     const tempFileObj = await saveImageTemporarily(buffer, tempFilename);
 
     return tempFileObj;
   } catch (error) {
-    console.error('画像の取得に失敗しました:', error);
+    Log.error('画像の取得に失敗しました:', { error });
     return lineClient.replyMessage(event.replyToken, {
       type: 'text',
       text: '画像の処理中にエラーが発生しました。'
@@ -345,7 +343,7 @@ async function getImage(messageId) {
 async function saveImageTemporarily(imageBuffer, filename) {
   const tempDir = os.tmpdir();
   const filePath = path.join(tempDir, filename);
-  
+
   try {
     await fs.writeFile(filePath, imageBuffer);
     Log.info('画像を一時保存しました', { filePath });
@@ -355,12 +353,12 @@ async function saveImageTemporarily(imageBuffer, filename) {
     const s3Url = await uploadImageToS3(filePath, s3Key);
     Log.info('S3に画像をアップロードしました', { s3Url });
 
-    return { 
+    return {
       filePath,
       s3Url
     };
   } catch (error) {
-    console.error('Error saving image:', error);
+    Log.error('Error saving image:', { error });
     throw error;
   }
 }
@@ -386,12 +384,12 @@ async function uploadImageToS3(filePath, s3Key) {
     const command = new PutObjectCommand(params);
     const response = await s3.send(command);
 
-    console.log(`Image uploaded successfully. ETag: ${response.ETag}`);
+    Log.info(`Image uploaded successfully. ETag: ${response.ETag}`);
     const region = await s3.config.region();
 
     return `https://${bucketName}.s3.${region}.amazonaws.com/${s3Key}`;
   } catch (error) {
-    console.error('Error uploading image to S3:', error);
+    Log.error('Error uploading image to S3:', { error });
     throw error;
   }
 }

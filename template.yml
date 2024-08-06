@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for LINE bot with Amazon Bedrock
+
+Globals:
+  Function:
+    Timeout: 180
+    Runtime: nodejs20.x
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+
+Resources:
+  BotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: handler.callback
+      Layers:
+        - arn:aws:lambda:ap-northeast-1:919605901492:layer:open-api-nodejs:4
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /callback
+            Method: post
+      Environment:
+        Variables:
+          CHANNEL_SECRET: "YOUR_CHANNEL_SECRET"
+          CHANNEL_ACCESS_TOKEN: "YOUR_CHANNEL_ACCESS_TOKEN"
+          DYNAMODB_TABLE: !Ref ConversationsTable
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:ListFoundationModels
+              Resource: arn:aws:bedrock:*:*:foundation-model/*
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:DeleteItem
+              Resource: !GetAtt ConversationsTable.Arn
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+                - s3:ListBucket
+              Resource: 
+                - !GetAtt S3Bucket.Arn
+                - !Sub "${S3Bucket.Arn}/*"
+
+  # HelloFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: ./
+  #     Handler: handler.hello
+  #     Events:
+  #       ApiEvent:
+  #         Type: Api
+  #         Properties:
+  #           Path: /hello
+  #           Method: get
+
+  ConversationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-conversations"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-bucket"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - "*"
+
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+            Resource: !Sub "${S3Bucket.Arn}/*"
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
