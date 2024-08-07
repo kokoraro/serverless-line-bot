@@ -18,8 +18,8 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: handler.callback
-      Layers:
-        - arn:aws:lambda:ap-northeast-1:919605901492:layer:open-api-nodejs:4
+      # Layers:
+      #   - arn:aws:lambda:ap-northeast-1:919605901492:layer:open-api-nodejs:4
       Events:
         ApiEvent:
           Type: Api

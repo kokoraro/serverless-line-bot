@@ -7,13 +7,9 @@
 ## Setup
 
 ```bash
-$ npm install serverless -g
-```
-
-```bash
 $ git clone https://github.com/x-hack-git/serverless-line-bot.git
 $ cd serverless-line-bot
-$ npm install
+$ yarn
 ```
 
 ## AWS Credentialsの設定手順
@@ -71,7 +67,8 @@ CHANNEL_SECRET: "YOUR LINE CHANNEL ACCESS TOKEN"
 In order to deploy the endpoint simply run
 
 ```bash
-$ serverless deploy
+$ sam package --output-template-file template.yaml --s3-bucket amazon-bedrock-bot-dev-bucket
+$ sam deploy --template-file template.yml
 ```
 
 The expected result should be similar to:
@@ -108,45 +105,6 @@ Serverless: Run the "serverless" command to setup monitoring, troubleshooting an
 ## Set Callback URL
 
 Endpoint URL https://example.region.amazonaws.com/stage/callback
-
-## Serverless Framework サインインプロセス
-
-1. Serverless Dashboard にサインアップ:
-  - ブラウザで https://app.serverless.com に移動し、アカウントを作成します。
-
-2. CLIからのサインイン:
-  ```
-  serverless login
-  ```
-  - このコマンドを実行すると、ブラウザが開き、Serverless Dashboard での認証が求められます。
-
-3. `serverless.yml` の設定:
-  ```yaml
-  service: your-service-name
-  ```
-
-4. デプロイ:
-  ```bash
-  $ serverless deploy
-  ```
-  - この時点で、自動的に Serverless Dashboard の認証情報が使用されます。
-
-## Serverless Dashboard を使用せずにデプロイする方法
-
-Serverless Dashboard を使用したくない場合や、CI/CD 環境でデプロイする場合は、以下の方法を使用できます：
-
-1. AWS 認証情報を直接設定:
-  - AWS CLI の設定: `aws configure`
-  - 環境変数の設定:
-    ```
-    export AWS_ACCESS_KEY_ID=your-access-key
-    export AWS_SECRET_ACCESS_KEY=your-secret-key
-    ```
-
-2. デプロイコマンドの実行:
-  ```
-  serverless deploy --verbose
-  ```
 
 ## CI/CD 環境での対応
 
