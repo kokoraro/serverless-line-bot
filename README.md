@@ -106,20 +106,6 @@ Serverless: Run the "serverless" command to setup monitoring, troubleshooting an
 
 Endpoint URL https://example.region.amazonaws.com/stage/callback
 
-## CI/CD 環境での対応
-
-1. 環境変数の設定:
-  - `AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` を CI/CD システムの環境変数として設定します。
-
-2. `serverless.yml` の修正:
-  - `org` と `app` の行を削除または commentout します。
-
-3. デプロイスクリプト:
-  ```bash
-  #!/bin/bash
-  serverless deploy --verbose
-  ```
-
 ## トラブルシューティング
 
 1. 認証エラーが発生する場合:
