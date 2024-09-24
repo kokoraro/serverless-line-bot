@@ -27,7 +27,7 @@ const lineClient = new line.Client({
 });
 
 const bedrockClient = new BedrockRuntimeClient({
-  region: "us-east-1",
+  region: "ap-northeast-1",
 });
 
 function generateResponse(statusCode, lineStatus, message) {
@@ -113,36 +113,6 @@ async function replyMessage(replyToken, message) {
     Log.error(`Get replyMessage error`, { error });
     return null;
   }
-}
-
-// open ai に画像を送信して説明を取得
-async function getImageDescription(image_url) {
-  // 初期化
-  const openai = new OpenAI();
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-2024-05-13",
-    max_tokens: 4096,
-    prompt: "あなたは画像を見ています。画像について説明してください。",
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "この画像について説明してください。"
-          },
-          {
-            type: "image_url",
-            image_url: {
-              "url": image_url,
-            },
-          },
-        ],
-      },
-    ],
-  });
-  return response.choices[0]["message"]["content"];
 }
 
 // 引数にpromptのテキストを指定する
@@ -257,15 +227,6 @@ async function invokeBedrockWithImage(imagePath) {
     Log.error("Error invoking Bedrock:", error);
     return "エラーが発生しました。";
   }
-}
-
-module.exports.hello = async (event, context) => {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: "Hello World!",
-    }),
-  };
 }
 
 module.exports.callback = async (event, context) => {
